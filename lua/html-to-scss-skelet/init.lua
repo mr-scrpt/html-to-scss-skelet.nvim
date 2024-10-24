@@ -2,9 +2,7 @@ local M = {}
 
 local function extract_class_names(line)
 	local class_names = {}
-	-- Поиск class="..."
 	for class_attr in string.gmatch(line, 'class%s*=%s*"([^"]+)"') do
-		-- Разделение имен классов по пробелам
 		for class_name in string.gmatch(class_attr, "%S+") do
 			table.insert(class_names, class_name)
 		end
@@ -18,7 +16,6 @@ local function extract_class_names(line)
 end
 
 function M.generate_scss_skeleton()
-	-- Получение выделенного текста
 	local s_start = vim.fn.getpos("'<")
 	local s_end = vim.fn.getpos("'>")
 	local lines = vim.fn.getline(s_start[2], s_end[2])
