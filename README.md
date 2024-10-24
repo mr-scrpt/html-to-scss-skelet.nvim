@@ -10,7 +10,7 @@ Use [Lazy.nvim](https://github.com/folke/lazy.nvim):
 {
     'mr-scrpt/html-to-scss-skelet.nvim',
     config = function()
-        vim.api.nvim_set_keymap('v', '<Leader>s', '<Cmd>lua require("html_to_scss").generate_scss_skeleton()<CR>', { noremap = true, silent = true })
+        vim.api.nvim_set_keymap('v', '<Leader>ms', '<Cmd>lua require("html_to_scss_skelet").generate_scss_skeleton()<CR>', { noremap = true, silent = true })
     end
 }
 
