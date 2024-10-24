@@ -3,94 +3,114 @@
 local M = {}
 
 function M.html_to_scss()
-	-- Получаем позиции начала и конца выделения
 	local start_pos = vim.fn.getpos("'<")
 	local end_pos = vim.fn.getpos("'>")
 
-	-- Извлекаем выделенные линии
 	local lines = vim.fn.getline(start_pos[2], end_pos[2])
 
-	-- Соединяем линии в один текст
 	local html = table.concat(lines, "\n")
 
-	-- Таблица для хранения всех классов
-	local class_set = {}
+	local class_list = {}
 
-	-- Извлекаем классы из HTML
+	local base_class_set = {}
+
 	for class_str in html:gmatch('class%s*=%s*"([^"]+)"') do
 		for cls in class_str:gmatch("%S+") do
-			class_set[cls] = true
+			table.insert(class_list, cls)
 		end
 	end
 
-	-- Функция для разделения класса на базовый класс, элементы и модификаторы
 	local function parse_class(cls)
 		-- Ищем первое вхождение '_' или '__'
 		local base_class, rest = cls:match("^([^_]+)(_.*)$")
 		if not base_class then
-			-- Если нет подчеркиваний, весь класс считается базовым
 			base_class = cls
 			rest = ""
 		end
 
-		local elements = {}
-		local modifiers = {}
+		local element = nil
+		local modifier = nil
 
 		if rest:sub(1, 2) == "__" then
-			-- Если rest начинается с '__', это элемент
-			table.insert(elements, rest:sub(3))
+			element = rest:sub(3)
 		elseif rest:sub(1, 1) == "_" then
-			-- Если rest начинается с '_', это модификатор
-			table.insert(modifiers, rest:sub(2))
+			modifier = rest:sub(2)
 		end
 
-		return base_class, elements, modifiers
+		return base_class, element, modifier
 	end
 
-	-- Таблица для хранения структурированных классов
 	local structured_classes = {}
 
-	for cls in pairs(class_set) do
-		local base_class, elements, modifiers = parse_class(cls)
-		if not structured_classes[base_class] then
-			structured_classes[base_class] = { elements = {}, modifiers = {} }
+	for _, cls in ipairs(class_list) do
+		local base_class, element, modifier = parse_class(cls)
+
+		if not base_class_set[base_class] then
+			base_class_set[base_class] = true
+			table.insert(structured_classes, { base_class = base_class, elements = {}, modifiers = {} })
 		end
 
-		for _, el in ipairs(elements) do
-			structured_classes[base_class].elements[el] = true
+		local base_entry = nil
+		for _, entry in ipairs(structured_classes) do
+			if entry.base_class == base_class then
+				base_entry = entry
+				break
+			end
 		end
 
-		for _, mod in ipairs(modifiers) do
-			structured_classes[base_class].modifiers[mod] = true
+		if element then
+			-- Проверяем, добавлен ли уже элемент
+			local exists = false
+			for _, el in ipairs(base_entry.elements) do
+				if el == element then
+					exists = true
+					break
+				end
+			end
+			if not exists then
+				table.insert(base_entry.elements, element)
+			end
+		elseif modifier then
+			-- Проверяем, добавлен ли уже модификатор
+			local exists = false
+			for _, mod in ipairs(base_entry.modifiers) do
+				if mod == modifier then
+					exists = true
+					break
+				end
+			end
+			if not exists then
+				table.insert(base_entry.modifiers, modifier)
+			end
 		end
 	end
 
-	-- Функция для создания SCSS скелета
 	local function build_scss(structured_classes)
 		local scss = ""
-		for base_class, data in pairs(structured_classes) do
+		for _, entry in ipairs(structured_classes) do
+			local base_class = entry.base_class
+			local elements = entry.elements
+			local modifiers = entry.modifiers
+
 			scss = scss .. "." .. base_class .. " {\n"
 
-			-- Добавляем модификаторы
-			for mod in pairs(data.modifiers) do
+			for _, mod in ipairs(modifiers) do
 				scss = scss .. "  &_" .. mod .. " {\n  }\n"
 			end
 
-			-- Добавляем элементы
-			for el in pairs(data.elements) do
+			for _, el in ipairs(elements) do
 				scss = scss .. "  &__" .. el .. " {\n  }\n"
 			end
 
-			scss = scss .. "}\n"
+			scss = scss .. "}\n\n"
 		end
 		return scss
 	end
 
 	local scss_output = build_scss(structured_classes)
 
-	-- Копируем результат в буфер обмена
 	vim.fn.setreg("+", scss_output)
-	print("SCSS скелет скопирован в буфер обмена!")
+	print("SCSS has been copied to the clipboard.")
 end
 
 return M
